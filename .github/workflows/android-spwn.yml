@@ -30,26 +30,25 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK and NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ndk;27.2.12479018
+
+      - name: Configure NDK
+        shell: bash
+        run: |
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_PATH"
 
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
-      - name: Generate lockfile
-        working-directory: app/spwn_source
-        run: cargo generate-lockfile
-
       - name: Compile SPWN
         working-directory: app/spwn_source
-        shell: bash
         run: |
-          set -e
-          for attempt in 1 2 3; do
-            cargo ndk -t "${{ matrix.abi }}" build \
-              --release -p spwn --bin spwn && break
-            if [ "$attempt" -eq 3 ]; then exit 1; fi
-            sleep 10
-          done
+          cargo ndk -t "${{ matrix.abi }}" build \
+            --release -p spwn --bin spwn
 
       - name: Prepare artifact
         run: |
