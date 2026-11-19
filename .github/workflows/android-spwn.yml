@@ -13,53 +13,52 @@ permissions:
 
 jobs:
   build:
-    name: SPWN Android (${{ matrix.abi }})
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
         include:
           - abi: armeabi-v7a
-            rust_target: armv7-linux-androideabi
+            target: armv7-linux-androideabi
           - abi: arm64-v8a
-            rust_target: aarch64-linux-android
+            target: aarch64-linux-android
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.rust_target }}
+          targets: ${{ matrix.target }}
 
-      - name: Install Android NDK
-        uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v3
 
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --locked
 
-      - name: Build original SPWN
+      - name: Generate lockfile
         working-directory: app/spwn_source
-        run: |
-          cargo ndk \
-            -t ${{ matrix.abi }} \
-            build \
-            --release \
-            --locked \
-            -p spwn \
-            --bin spwn
+        run: cargo generate-lockfile
 
-      - name: Prepare output
+      - name: Compile SPWN
+        working-directory: app/spwn_source
+        shell: bash
+        run: |
+          set -e
+          for attempt in 1 2 3; do
+            cargo ndk -t "${{ matrix.abi }}" build \
+              --release -p spwn --bin spwn && break
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep 10
+          done
+
+      - name: Prepare artifact
         run: |
           mkdir -p "dist/${{ matrix.abi }}"
-          cp "app/spwn_source/target/${{ matrix.rust_target }}/release/spwn" \
-             "dist/${{ matrix.abi }}/spwn"
+          cp "app/spwn_source/target/${{ matrix.target }}/release/spwn" \
+            "dist/${{ matrix.abi }}/spwn"
           file "dist/${{ matrix.abi }}/spwn"
 
-      - name: Upload Android binary
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: spwn-${{ matrix.abi }}
           path: dist/${{ matrix.abi }}/spwn
