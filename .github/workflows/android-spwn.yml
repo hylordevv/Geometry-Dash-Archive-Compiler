@@ -1,0 +1,66 @@
+name: Build SPWN for Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app/spwn_source/**"
+      - ".github/workflows/android-spwn.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: SPWN Android (${{ matrix.abi }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: armeabi-v7a
+            rust_target: armv7-linux-androideabi
+          - abi: arm64-v8a
+            rust_target: aarch64-linux-android
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Install Android NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      - name: Build original SPWN
+        working-directory: app/spwn_source
+        run: |
+          cargo ndk \
+            -t ${{ matrix.abi }} \
+            build \
+            --release \
+            --locked \
+            -p spwn \
+            --bin spwn
+
+      - name: Prepare output
+        run: |
+          mkdir -p "dist/${{ matrix.abi }}"
+          cp "app/spwn_source/target/${{ matrix.rust_target }}/release/spwn" \
+             "dist/${{ matrix.abi }}/spwn"
+          file "dist/${{ matrix.abi }}/spwn"
+
+      - name: Upload Android binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: spwn-${{ matrix.abi }}
+          path: dist/${{ matrix.abi }}/spwn
+          if-no-files-found: error
