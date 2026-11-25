@@ -1,0 +1,9 @@
+GD ARCHIVE COMPILER - gerar o APK no terminal do Acode (Alpine, 32-bit)
+
+apk add bash unzip
+cd ~ && unzip -o /sdcard/Download/GDAC.zip && cd GDAC && bash build.sh
+
+O APK sai em ~/GDAC/out/GDAC.apk e e copiado para Download/GDAC.apk.
+Se travar na assinatura:
+  JAVA_TOOL_OPTIONS="-Djava.security.egd=file:/dev/urandom" bash build.sh
+Se der erro, copie a mensagem e mande pro Claude.
